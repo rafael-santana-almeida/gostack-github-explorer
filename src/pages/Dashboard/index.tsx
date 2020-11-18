@@ -1,69 +1,97 @@
-import React from 'react';
+import React, { useState, useEffect, FormEvent } from 'react';
 import { FiChevronRight } from 'react-icons/fi';
+import api from '../../services/api';
 
 import logoImg from '../../assets/logo.svg';
 
-import { Title, Form, Repositories } from './styles';
+import { Title, Form, Repositories, Error } from './styles';
+
+interface Repository {
+  full_name: string;
+  description: string;
+  owner: {
+    avatar_url: string;
+    login: string;
+  };
+}
 
 const Dashboard: React.FC = () => {
+  const [newRepo, setNewRepo] = useState('');
+  const [inputError, setInputError] = useState('');
+  const [repositories, setRepositories] = useState<Repository[]>(() => {
+    const storegedRepositories = localStorage.getItem(
+      '@GithubExplorer:repositories',
+    );
+
+    if (storegedRepositories) {
+      return JSON.parse(storegedRepositories);
+    }
+
+    return [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem(
+      '@GithubExplorer:repositories',
+      JSON.stringify(repositories),
+    );
+  }, [repositories]);
+
+  async function handleAddRepository(
+    event: FormEvent<HTMLFormElement>,
+  ): Promise<void> {
+    event.preventDefault();
+
+    if (!newRepo) {
+      setInputError('Informe o autor/nome do repositório');
+      return;
+    }
+
+    try {
+      const response = await api.get<Repository>(`repos/${newRepo}`);
+
+      const repository = response.data;
+
+      setRepositories([...repositories, repository]);
+      setNewRepo('');
+      setInputError('');
+    } catch (err) {
+      setInputError('Repositório não localizado!');
+    }
+  }
+
   return (
     <>
       <img src={logoImg} alt="Github Explorer" />
       <Title>Explore repositórios no Github</Title>
 
-      <Form>
-        <input placeholder="Digite o nome do repositório" />
+      <Form hasError={!!inputError} onSubmit={handleAddRepository}>
+        <input
+          value={newRepo}
+          onChange={e => setNewRepo(e.target.value)}
+          placeholder="Digite o nome do repositório"
+        />
         <button type="submit">Pesquisar</button>
       </Form>
 
+      {inputError && <Error>{inputError}</Error>}
+
       <Repositories>
-        <a href="teste">
-          <img
-            src="https://avatars1.githubusercontent.com/u/46360769?s=460&u=4e946615605e1752fd4e7c74c83d2733af237e69&v=4"
-            alt="Rafael Santana"
-          />
+        {repositories.map(repository => (
+          <a key={repository.full_name} href="teste">
+            <img
+              src={repository.owner.avatar_url}
+              alt={repository.owner.login}
+            />
 
-          <div>
-            <strong>rafael-santana-almeida/gostack-github-explorer</strong>
-            <p>
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-            </p>
-          </div>
+            <div>
+              <strong>{repository.full_name}</strong>
+              <p>{repository.description}</p>
+            </div>
 
-          <FiChevronRight size={20} />
-        </a>
-
-        <a href="teste">
-          <img
-            src="https://avatars1.githubusercontent.com/u/46360769?s=460&u=4e946615605e1752fd4e7c74c83d2733af237e69&v=4"
-            alt="Rafael Santana"
-          />
-
-          <div>
-            <strong>rafael-santana-almeida/gostack-github-explorer</strong>
-            <p>
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-            </p>
-          </div>
-
-          <FiChevronRight size={20} />
-        </a>
-
-        <a href="teste">
-          <img
-            src="https://avatars1.githubusercontent.com/u/46360769?s=460&u=4e946615605e1752fd4e7c74c83d2733af237e69&v=4"
-            alt="Rafael Santana"
-          />
-
-          <div>
-            <strong>rafael-santana-almeida/gostack-github-explorer</strong>
-            <p>
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-            </p>
-          </div>
-
-          <FiChevronRight size={20} />
-        </a>
+            <FiChevronRight size={20} />
+          </a>
+        ))}
       </Repositories>
     </>
   );
